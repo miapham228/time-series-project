@@ -1,0 +1,100 @@
+---
+title: "The Report"
+author: "Group 6"
+date: "2024-05-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(fpp3)
+library(grid)
+library(gridExtra)
+```
+
+# 1. Exploratory data analysis
+
+The data set contains information about the quarterly (chain volume) gross domestic product (QGDP) for all ANZSIC06 industry groups in New Zealand, measured in the prices from 2009/10 in NZD Millions from 1987 Q2 until 2021 Q4. Our task is exploring the quarterly GDP in Local Government Administration group. 
+
+```{r}
+# read-in data
+train <- read_csv("qgdp_training.csv",show_col_types = FALSE)
+# convert data into tsibble
+train <- train %>% mutate(Quarter = yearquarter(Date)) %>%  
+  select(Quarter,`Local Government Administration`) %>% 
+  as_tsibble(index = Quarter)
+```
+Firstly, we look at time plot and relevant plots.
+
+```{r}
+# time plot
+train %>% autoplot(`Local Government Administration`) + ggtitle(" GDP in Local Government Administration") + 
+  xlab("Time") + ylab("NZD (Millions)") +
+  theme_bw()+ 
+  theme(plot.title = element_text(hjust = 0.5)) 
+# Seasonal subseries plot with gg_subseries
+train %>%
+  gg_subseries(`Local Government Administration`) +
+  ylab("NZD(Millions)")
+# correlogram
+train %>%
+  ACF(`Local Government Administration`, lag_max = 50) %>%
+  autoplot() 
+```
+
+Looking at the time plot, we observed that this is a trending with structure break and seasonality time series. More specific, the average GDP for Q4 was the highest value while the average GDP for Q1 was the smallest value based on the sub-series plot. We can also see an increasing year-on-year trend for each quarter in the sub-series plot and the GDP, on average, increases as the year increases. 
+Also, we can see the autocorrelations for small lags tend to be large and positive and decays slowly as the lags increases and the seasonal pattern is not clear in the correlogram. Also, noticing the reverse pattern appeared after lag 43, suggesting the structure break is in this trended time series. 
+
+Next, we have a look at the decomposition plot by using STL decomposition. We decide to use STL model because it allows the seasonal component change over time and we see the magnitude of variation around the trend-cycle does not really vary with the level, so we only consider additive decomposition.   
+
+```{r}
+# decomposition
+stl.dcmp <- train %>%
+  model(STL(`Local Government Administration`,robust = TRUE)) %>%
+  components() 
+stl.dcmp%>% 
+  autoplot()
+```
+
+Based on the decomposition result, we can see the trend component dominates the time series, accounting for most of the variability. This is followed by the remainder component, and then the seasonal component. There is a period of time the trend is negative and then stable (from 1990 Q1 until around year of 2003). However, the long-term trend appears to be positive, indicating the GDP in Local Government Administration are increasing. The remainder component appears random, with no discernible patterns, and may be consistent with white noise but we would need further analysis test this. The seasonal component changes quickly over time, where the magnitudes are significantly increasing.
+
+
+
+# 2. ETS models
+
+```{r}
+
+```
+
+
+# 3. ARIMA models
+
+```{r}
+
+```
+
+
+# 4. Neural network autoregression (NNAR) models
+
+```{r}
+
+```
+
+
+# 5. Assumption checking
+
+```{r}
+
+```
+
+
+# 6. Forecasting
+
+```{r}
+
+```
+
+
+# 7. Member contributions
+
