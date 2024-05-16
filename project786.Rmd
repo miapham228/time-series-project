@@ -63,9 +63,75 @@ Based on the decomposition result, we can see the trend component dominates the 
 
 # 2. ETS models
 
-```{r}
 
+Based on the analysis in the first step, we can confirm that there are indeed trends and seasonal changes, but I am currently unable to determine whether to use multiplicative seasonality or additive seasonality to fit the ets model. And it is necessary to consider whether to adopt a pounded trend. So, I decided to manually try out the pros and cons of these four models first.
+
+```{r}
+data <- read_csv("qgdp_training.csv",show_col_types = FALSE)
+
+data <- data %>% mutate(Quarter = yearquarter(Date)) %>%  
+  select(Quarter,`Local Government Administration`) %>% 
+  as_tsibble(index = Quarter)
+
+fit <- data %>%
+       model(
+         additive_season = ETS(`Local Government Administration` ~ error("A") + trend("A") + season("A")),
+         multiplicative_season = ETS(`Local Government Administration` ~ error("M") + trend("A") + season("M")),
+         additive_season_damped = ETS(`Local Government Administration` ~ error("A") + trend("Ad") + season("A")),
+         multiplicative_season_damped = ETS(`Local Government Administration` ~ error("M") + trend("Ad") + season("M"))
+       )
+
+fc <- fit %>% forecast(h = "5 years")
+fc %>% autoplot(data)
+
+# Check model summary
+report(fit)
+
+# Use the method of automatically selecting the best model to check if we have selected it correctly.
+fit_best <- data %>%
+  model(ETS(`Local Government Administration`))
+report(fit_best)
 ```
+
+We can clearly see here that among many aspects of error data, the method of adding seasonality and with Damped trend has the smallest errors, and my method of automatically obtaining the minimum AIC also told me that I should choose the method of adding seasonality and with Damped trend.
+
+## ETS Model Introduction
+
+The ETS (Error, Trend, Seasonality) model we selected is specified as an additive error, damped additive trend, and additive seasonality model. Below are the equations representing this model setup:
+
+### Model Equations
+
+The ETS model equations for an additive error, damped additive trend, and additive seasonality are as follows:
+
+- **Forecast equation:**
+  \[
+  \hat{y}_{t|t-1} = (l_{t-1} + \phi b_{t-1}) + s_{t-m}
+  \]
+
+- **Level equation:**
+  \[
+  l_t = l_{t-1} + \phi b_{t-1} + \alpha e_t
+  \]
+
+- **Trend equation:**
+  \[
+  b_t = \phi b_{t-1} + \beta e_t
+  \]
+
+- **Seasonal equation:**
+  \[
+  s_t = s_{t-m} + \gamma e_t
+  \]
+
+Where:
+- \( \hat{y}_{t|t-1} \) is the one-step ahead forecast,
+- \( l_t \) is the level component at time \( t \),
+- \( b_t \) is the trend component at time \( t \),
+- \( s_t \) is the seasonal component at time \( t \),
+- \( \phi \) is the damping factor,
+- \( \alpha, \beta, \gamma \) are the smoothing parameters,
+- \( e_t \) is the forecast error at time \( t \).
+
 
 
 # 3. ARIMA models
