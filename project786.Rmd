@@ -136,9 +136,85 @@ Where:
 
 # 3. ARIMA models
 
-```{r}
+To fit an appropriate ARIMA model, we first need to test the stationarity of the time series data. Because if the time series data is stationary, it means that its statistical characteristics are constant over time, allowing for better modeling and prediction. So here, we first conducted ADF test on the data.
 
+```{r}
+# Load the data.
+data <- read.csv("qgdp_training.csv")
+
+# Check the stationarity of the data.
+adf.test(data$Local.Government.Administration)
 ```
+
+From the test results, we can see that the p-value is greater than 0.05/0.01 (commonly used significance level), indicating that we cannot reject the null hypothesis that the data is non-stationary. Therefore, we need to perform differencing on the data.
+
+```{r}
+# Perform differencing on the data.
+diff_data <- diff(data$Local.Government.Administration)
+
+# Check the stability of the data.
+adf.test(diff_data)
+
+# Draw a time series plot after one differencing.
+plot(diff_data, main="Data after one differencing", ylab="Differencing Value", xlab="Time")
+```
+
+After conducting a differencing analysis, although the p-value was much less than 0.05, I encountered an error when manually fitting the ARIMA model to the data after one differencing analysis. It reminds me that there are still unstable parts in the data. At the same time, I drew a time series plot of the differencing data, and it can be observed that the data did not tend to be stable, but still showed a certain trend. So I chose to perform a second differencing.
+
+```{r}
+# Perform differencing secondly on the data.
+diff2_data <- diff(diff_data)
+
+# Check the stability of the data.
+adf.test(diff2_data)
+
+# Draw a time series plot after two differencing.
+plot(diff2_data, main="Data after two differencing", ylab="Differencing Value", xlab="Time")
+```
+
+From the results, we can see that the p-value of the data after the second differencing is still very small (less than 0.05). And by drawing a time series plot of the differencing data, we can see that the data has become more stable, so I decided to start fitting the ARIMA model. Firstly, manual fitting is performed. In order to determine the p-value and q-value of the model, we first draw the ACF and PACF plots of the data after the second differencing.
+
+```{r}
+# Draw the ACF and PACF plots.
+acf(diff2_data)
+pacf(diff2_data)
+```
+
+Through the ACF plot, we can locate the p-value candidate values as 1, 2, or 4. Because the ACF plot is significantly truncated after these lag values . Through the PACF plot, we can locate the p-value candidate values as 1, 3, or 7. Because the PACF plot is significantly truncated after these lag values. Next, we create a shortlist of appropriate candidate ARIMA models by arranging and combining different q and p values.
+
+```{r}
+# Fitting the ARIMA model manually.
+model1 <- arima(data$Local.Government.Administration, order=c(1,2,1))
+model2 <- arima(data$Local.Government.Administration, order=c(2,2,1))
+model3 <- arima(data$Local.Government.Administration, order=c(4,2,1))
+model4 <- arima(data$Local.Government.Administration, order=c(4,2,3))
+model5 <- arima(data$Local.Government.Administration, order=c(7,2,1))
+model6 <- arima(data$Local.Government.Administration, order=c(7,2,3))
+
+# Fitting the ARIMA model automatically.
+auto_model <- auto.arima(data$Local.Government.Administration)
+
+# Compare the AIC value of the models.
+AIC(model1, model2, model3, model4, model5, model6, auto_model)
+```
+
+By comparing the AIC values of the models, we can find that Model 6 has the lowest AIC value. It performs best in balancing goodness of fit and model complexity. We can preliminarily confirm that it has the best predictive ability. To further validate our idea, I checked its residual ACF plot and performed Ljung-Box test.
+
+```{r}
+# Check the residuals of the model6 and do the Ljung-Box.
+acf(residuals(model6))
+Box.test(residuals(model6), lag=20, type="Ljung-Box")
+```
+
+By observing its residual ACF plot, we can observe that most of the residual autocorrelation coefficients in the lag period are within the confidence interval, with only a few lag periods slightly exceeding the confidence interval. And its Ljung-Box test has a p-value greater than 0.05, indicating no significant autocorrelation in the residuals. This indicates that the residuals are mostly white noise, and Model 6 has a good fitting effect.
+
+```{r}
+# So we think model6 is the best model.
+summary(model6)
+```
+
+Based on the results of Model 6, we can write the fitted model equation in backshift notation:
+![The fitted model equation](Equation.jpg)
 
 
 # 4. Neural network autoregression (NNAR) models
