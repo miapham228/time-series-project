@@ -261,22 +261,23 @@ The notation NNAR(*p*, *k*) indicates there are *p* lagged inputs and *k* nodes 
 
 A NNAR(*p*,0) model is equivalent to an ARIMA(*p*,0,0) model, in terms of using *p* past observations for forecasting. But, note that there are no restrictions on the parameters to ensure stationary.
 
-With seasonal data, we can also add the last observed values from the same season as inputs. NNAR(*p*, *P*, *k*)m model has inputs ($y_{t-1} ,  y_{t-2} , \cdots , y_{t-p} , y_{t-m} , y_{t-2m} , \cdots , y_{t-Pm}$) and *k* neurons in the hidden layer. 
+With seasonal data, we can also add the last observed values from the same season as inputs. NNAR(*p*, *P*, *k*)m model has inputs ($y_{t-1} ,  y_{t-2} , \cdots , y_{t-p} , y_{t-m} , y_{t-2m} , \cdots , y_{t-Pm}$) and *k* neurons in the hidden layer. *P* is the number of lagged seasonal observations used as inputs.
 
 In R, the **NNETAR()** function fits an NNAR(*p*, *P*, *k*)m model. If the values of *p* and *P* are not specified, these will be selected automatically. The values selected is the optimal values. 
 
 For seasonal time series, the default values are *P = 1* and *p* is chosen from the optimal linear model fitted to the seasonally adjusted data. If *k* is not specified, it is set to *k = (p + P + 1)/2* (round to the nearest integer).
 
 ```{r}
-nnar_model <- nnetar(train$`Local Government Administration`)
-print(nnar_model)
+nnar_model <- train %>% model(NNETAR(`Local Government Administration`))
+report(nnar_model)
 ```
 
-We will use the nnetar() function. Since we are looking to fit an automatic NNAR model to our dataset, we do not manually specify the values for the parameters p (non-seasonal lags), P (seasonal lags), and k (number of neurons). This is because the nnetar() function automatically selects the optimal values for the parameters based on the characteristics of the time series data.   
+We will use the NNETAR() function. Since we are looking to fit an automatic NNAR model to our dataset, we do not manually specify the values for the parameters p (non-seasonal lags), P (seasonal lags), and k (number of neurons). This is because the NNETAR() function automatically selects the optimal values for the parameters based on the characteristics of the time series data.   
 
-From the output, `Model:  NNAR(5,3)` indicates that there are 5 lagged inputs used as input features for the neural network, and there are 3 nodes (neurons) in the hidden layer of the neural network.
+From the output, `Model:  NNAR(1,1,2)[4]` , this takes the format NNAR(*p*, *P*, *k*)m. This indicates that there is 1 lagged observation used as input (autoregressive term)- *p* . There is 1 lagged seasonal observation used as input - *P*. There are 2 nodes in the hidden layer - *k*. The number 4 means quarterly data. *m* is the seasonal frequency. 
 
-The numbers (5-3-1) represent the number of neurons in each layer of the network: 5 lagged input, 3 hidden neurons, and 1 output neuron that produce the model's prediction.
+The numbers (2-2-1) indicates each network has the structure of 2 input nodes, 2 hidden nodes, and 1 output node. The 2 input nodes correspond to the number of autoregressive and seasonal terms (*p*+ *P*). 2 hidden nodes and 1 output node that produce the model's prediction.
+
 
 # 5. Assumption checking
 
