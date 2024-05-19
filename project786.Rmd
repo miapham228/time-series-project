@@ -11,6 +11,15 @@ library(tidyverse)
 library(fpp3)
 library(grid)
 library(gridExtra)
+library(forecast)
+library(tseries)
+library(dplyr)
+library(feasts)
+library(fabletools)
+library(tsibble)
+library(ggplot2)
+library(latex2exp)
+library(nnet)
 ```
 
 # 1. Exploratory data analysis
@@ -136,93 +145,138 @@ Where:
 
 # 3. ARIMA models
 
-To fit an appropriate ARIMA model, we first need to test the stationarity of the time series data. Because if the time series data is stationary, it means that its statistical characteristics are constant over time, allowing for better modeling and prediction. So here, we first conducted ADF test on the data.
+To fit an appropriate ARIMA model, we first need to test the stationary of the time series data. Because if the time series data is stationary, it means that its statistical characteristics are constant over time, allowing for better modeling and prediction. But here we first need to convert the Date column to date format, as it is quarterly data. And at the same time, it is necessary to convert the data into tsible format. Then, we first conducted KPSS test on the data to check the stationary.
 
 ```{r}
 # Load the data.
 data <- read.csv("qgdp_training.csv")
 
-# Check the stationarity of the data.
-adf.test(data$Local.Government.Administration)
+# Convert the Date column to date format.
+data <- data %>%
+  mutate(Date = yearquarter(Date))
+
+# Convert the data to tsible format.
+data_tsibble <- data %>%
+  as_tsibble(index = Date)
+
+# Check the stationary of the original data.
+kpss_results <- data_tsibble %>%
+  features(Local.Government.Administration, unitroot_kpss)
+
+print(kpss_results)
 ```
 
-From the test results, we can see that the p-value is greater than 0.05/0.01 (commonly used significance level), indicating that we cannot reject the null hypothesis that the data is non-stationary. Therefore, we need to perform differencing on the data.
+From the test results, according to the KPSS test, the kpss_pvalue is very small, far below the commonly used significance level(0.05), so we reject the null hypothesis that the data is stationary. This means that the data is non-stationary. Therefore, we need to perform a first difference on the data.
 
 ```{r}
-# Perform differencing on the data.
-diff_data <- diff(data$Local.Government.Administration)
+# Perform a first difference on the data.
+data_tsibble <- data_tsibble %>%
+  mutate(diff_Local.Government.Administration = difference(Local.Government.Administration))
 
-# Check the stability of the data.
-adf.test(diff_data)
-
-# Draw a time series plot after one differencing.
-plot(diff_data, main="Data after one differencing", ylab="Differencing Value", xlab="Time")
+# Do the KPSS test.
+kpss_results_diff <- data_tsibble %>%
+  features(diff_Local.Government.Administration, unitroot_kpss)
+print(kpss_results_diff)
 ```
 
-After conducting a differencing analysis, although the p-value was much less than 0.05, I encountered an error when manually fitting the ARIMA model to the data after one differencing analysis. It reminds me that there are still unstable parts in the data. At the same time, I drew a time series plot of the differencing data, and it can be observed that the data did not tend to be stable, but still showed a certain trend. So I chose to perform a second differencing.
+After performing a first difference on the data, we conducted a KPSS test again and found that kpss_pvalue was still below the significance level(0.05). So we still reject the null hypothesis that the data is stationary. This means that the data is still non-stationary. Therefore, we need to perform a second-order difference on the data.
 
 ```{r}
-# Perform differencing secondly on the data.
-diff2_data <- diff(diff_data)
+# Perform a second-order difference on the data.
+data_tsibble <- data_tsibble %>%
+  mutate(diff2_Local.Government.Administration = difference(diff_Local.Government.Administration))
 
-# Check the stability of the data.
-adf.test(diff2_data)
-
-# Draw a time series plot after two differencing.
-plot(diff2_data, main="Data after two differencing", ylab="Differencing Value", xlab="Time")
+# Do the KPSS test.
+kpss_results_diff2 <- data_tsibble %>%
+  features(diff2_Local.Government.Administration, unitroot_kpss)
+print(kpss_results_diff2)
 ```
 
-From the results, we can see that the p-value of the data after the second differencing is still very small (less than 0.05). And by drawing a time series plot of the differencing data, we can see that the data has become more stable, so I decided to start fitting the ARIMA model. Firstly, manual fitting is performed. In order to determine the p-value and q-value of the model, we first draw the ACF and PACF plots of the data after the second differencing.
+From the results, we can see that the kpss_pvalue of the data after the second-order difference is greater than the significance level(0.05). So it means that the data has become stable, so I decided to start fitting the ARIMA model. Firstly, manual fitting is performed. In order to determine the p-value and q-value of the model, we first draw the ACF and PACF plots of the data after the second-order difference on the data.
 
 ```{r}
-# Draw the ACF and PACF plots.
-acf(diff2_data)
-pacf(diff2_data)
+# Draw the ACF plot and PACF plot with the second-order difference data.
+gg_tsdisplay(data_tsibble, diff2_Local.Government.Administration, plot_type = "partial")
 ```
 
-Through the ACF plot, we can locate the p-value candidate values as 1, 2, or 4. Because the ACF plot is significantly truncated after these lag values . Through the PACF plot, we can locate the p-value candidate values as 1, 3, or 7. Because the PACF plot is significantly truncated after these lag values. Next, we create a shortlist of appropriate candidate ARIMA models by arranging and combining different q and p values.
+Through the ACF plot, we can locate the p-value candidate values as 2, 3 or 4. Through the PACF plot, we can locate the q-value candidate values as 1 or 3. Because the autocorrelation coefficients are significant at these lagging points. Next, we create a shortlist of appropriate candidate ARIMA models by arranging and combining different q and p values.
 
 ```{r}
-# Fitting the ARIMA model manually.
-model1 <- arima(data$Local.Government.Administration, order=c(1,2,1))
-model2 <- arima(data$Local.Government.Administration, order=c(2,2,1))
-model3 <- arima(data$Local.Government.Administration, order=c(4,2,1))
-model4 <- arima(data$Local.Government.Administration, order=c(4,2,3))
-model5 <- arima(data$Local.Government.Administration, order=c(7,2,1))
-model6 <- arima(data$Local.Government.Administration, order=c(7,2,3))
+# Fit the ARIMA model and store them in the shortlist.
+models <- data_tsibble %>%
+  model(
+    arima_220 = ARIMA(Local.Government.Administration ~ pdq(2, 2, 0)),
+    arima_221 = ARIMA(Local.Government.Administration ~ pdq(2, 2, 1)),
+    arima_021 = ARIMA(Local.Government.Administration ~ pdq(0, 2, 1)),
+    arima_023 = ARIMA(Local.Government.Administration ~ pdq(0, 2, 3)),
+    arima_211 = ARIMA(Local.Government.Administration ~ pdq(2, 1, 1)),
+    arima_420 = ARIMA(Local.Government.Administration ~ pdq(4, 2, 0)),
+    arima_321 = ARIMA(Local.Government.Administration ~ pdq(3, 2, 1)),
+    arima_320 = ARIMA(Local.Government.Administration ~ pdq(3, 2, 0)),
+    stepwise = ARIMA(Local.Government.Administration),
+    search = ARIMA(Local.Government.Administration, stepwise = FALSE)
+  )
 
-# Fitting the ARIMA model automatically.
-auto_model <- auto.arima(data$Local.Government.Administration)
-
-# Compare the AIC value of the models.
-AIC(model1, model2, model3, model4, model5, model6, auto_model)
+# Report the summary of the models.
+glance(models) %>% arrange(AICc)
 ```
 
-By comparing the AIC values of the models, we can find that Model 6 has the lowest AIC value. It performs best in balancing goodness of fit and model complexity. We can preliminarily confirm that it has the best predictive ability. To further validate our idea, I checked its residual ACF plot and performed Ljung-Box test.
+So the candidate models are: (2, 1, 1), (4, 2, 0), (3, 2, 0), (3, 2, 1), (2, 2, 1), (2, 2, 0), (0, 2, 3), (0, 2, 1), and automatic model. By observing the AIC, AICc, and BIC of these models, we can observe that the search model can minimize these parameters. Therefore, we believe that this model is the best model with the best predictive ability. It performs best in balancing goodness of fit and model complexity.
 
 ```{r}
-# Check the residuals of the model6 and do the Ljung-Box.
-acf(residuals(model6))
-Box.test(residuals(model6), lag=20, type="Ljung-Box")
+# So we think search model is the best model.
+best_model <- models %>%
+  select(search)
+report(best_model)
 ```
 
-By observing its residual ACF plot, we can observe that most of the residual autocorrelation coefficients in the lag period are within the confidence interval, with only a few lag periods slightly exceeding the confidence interval. And its Ljung-Box test has a p-value greater than 0.05, indicating no significant autocorrelation in the residuals. This indicates that the residuals are mostly white noise, and Model 6 has a good fitting effect.
+Based on the results of search model, we can write the fitted model equation in backshift notation:
 
-```{r}
-# So we think model6 is the best model.
-summary(model6)
-```
+\documentclass{article}
+\usepackage{amsmath}
+\begin{document}
 
-Based on the results of Model 6, we can write the fitted model equation in backshift notation:
-![The fitted model equation](Equation.jpg)
+\[
+(1 - 0.0764B - 0.2787B^2) (1 - B^4) \nabla y_t = (1 - 0.6220B^4) \epsilon_t
+\]
 
+\end{document}
 
 # 4. Neural network autoregression (NNAR) models
 
-```{r}
+Neural Network Autoregression (NNAR) model is a type of forecasting model that combines the principles of neural networks and autoregressive (AR) models. NNAR models are useful in time series forecasting, where past values of a series are used to predict future values.
 
+Neural networks consist layers of interconnected nodes (neurons) that learn complex patterns in data through training. They are powerful for modelling non-linear relationships and also allow complex non-linear relationships between the response variable and its predictors.
+
+The NNAR model combines these two approaches, which uses previous time series values (like the AR model) as input features for a neural network. The neural network then processes the inputs to predict future values.
+
+For time series data, lagged values of the time series can be used as inputs to a neural network. This is the Neural Network Autoregression (NNAR) model.
+
+Structure of the NNAR model: 
+1. **Input Layer**: Receives *p* lagged values of the time series (similar to AR model inputs).
+2. **Hidden Layers**: One or more hidden layers , with neurons that apply non-linear transformations to the inputs. The number of neurons and hidden layers can vary based on the complexity required.
+3. **Output Layer**: Typically a single neuron that outputs the predicted future value.
+
+The notation NNAR(*p*, *k*) indicates there are *p* lagged inputs and *k* nodes in the hidden layer. For example, a NNAR(8,4) model is a neural network with the last eight observations (yt−1,yt−2,…,yt−8) used as inputs for forecasting the output *yt*, and has four neurons in the hidden layer.
+
+A NNAR(*p*,0) model is equivalent to an ARIMA(*p*,0,0) model, in terms of using *p* past observations for forecasting. But, note that there are no restrictions on the parameters to ensure stationary.
+
+With seasonal data, we can also add the last observed values from the same season as inputs. NNAR(*p*, *P*, *k*)m model has inputs (yt−1,yt−2,…,yt−p,yt−m,yt−2m,…,yt−Pm) and *k* neurons in the hidden layer. 
+
+In R, the **NNETAR()** function fits an NNAR(*p*, *P*, *k*)m model. If the values of *p* and *P* are not specified, these will be selected automatically. The values selected is the optimal values. 
+
+For seasonal time series, the default values are *P = 1* and *p* is chosen from the optimal linear model fitted to the seasonally adjusted data. If *k* is not specified, it is set to *k = (p + P + 1)/2* (round to the nearest integer).
+
+```{r}
+nnar_model <- nnetar(train$`Local Government Administration`)
+print(nnar_model)
 ```
 
+We will use the nnetar() function. Since we are looking to fit an automatic NNAR model to our dataset, we do not manually specify the values for the parameters p (non-seasonal lags), P (seasonal lags), and k (number of neurons). This is because the nnetar() function automatically selects the optimal values for the parameters based on the characteristics of the time series data.   
+
+From the output, `Model:  NNAR(5,3)` indicates that there are 5 lagged inputs used as input features for the neural network, and there are 3 nodes (neurons) in the hidden layer of the neural network.
+
+The numbers (5-3-1) represent the number of neurons in each layer of the network: 5 lagged input, 3 hidden neurons, and 1 output neuron that produce the model's prediction.
 
 # 5. Assumption checking
 
