@@ -257,11 +257,11 @@ Structure of the NNAR model:
 2. **Hidden Layers**: One or more hidden layers , with neurons that apply non-linear transformations to the inputs. The number of neurons and hidden layers can vary based on the complexity required.
 3. **Output Layer**: Typically a single neuron that outputs the predicted future value.
 
-The notation NNAR(*p*, *k*) indicates there are *p* lagged inputs and *k* nodes in the hidden layer. For example, a NNAR(8,4) model is a neural network with the last eight observations (yt−1,yt−2,…,yt−8) used as inputs for forecasting the output *yt*, and has four neurons in the hidden layer.
+The notation NNAR(*p*, *k*) indicates there are *p* lagged inputs and *k* nodes in the hidden layer. For example, a NNAR(8,4) model is a neural network with the last eight observations ($y_{t-1} ,  y_{t-2} , \cdots , y_{t-8}$) used as inputs for forecasting the output $y_{t}$, and has four neurons in the hidden layer.
 
 A NNAR(*p*,0) model is equivalent to an ARIMA(*p*,0,0) model, in terms of using *p* past observations for forecasting. But, note that there are no restrictions on the parameters to ensure stationary.
 
-With seasonal data, we can also add the last observed values from the same season as inputs. NNAR(*p*, *P*, *k*)m model has inputs (yt−1,yt−2,…,yt−p,yt−m,yt−2m,…,yt−Pm) and *k* neurons in the hidden layer. 
+With seasonal data, we can also add the last observed values from the same season as inputs. NNAR(*p*, *P*, *k*)m model has inputs ($y_{t-1} ,  y_{t-2} , \cdots , y_{t-p} , y_{t-m} , y_{t-2m} , \cdots , y_{t-Pm}$) and *k* neurons in the hidden layer. 
 
 In R, the **NNETAR()** function fits an NNAR(*p*, *P*, *k*)m model. If the values of *p* and *P* are not specified, these will be selected automatically. The values selected is the optimal values. 
 
