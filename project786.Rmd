@@ -52,8 +52,7 @@ train %>%
   autoplot() 
 ```
 
-Looking at the time plot, we observed that this is a trending with structure break and seasonality time series. More specific, the average GDP for Q4 was the highest value while the average GDP for Q1 was the smallest value based on the sub-series plot. We can also see an increasing year-on-year trend for each quarter in the sub-series plot and the GDP, on average, increases as the year increases. 
-Also, we can see the autocorrelations for small lags tend to be large and positive and decays slowly as the lags increases and the seasonal pattern is not clear in the correlogram. Also, noticing the reverse pattern appeared after lag 43, suggesting the structure break is in this trended time series. 
+Looking at the time plot, we observed that this is a trending with structure break and seasonality time series. This is also confirmed by seeing the autocorrelations for small lags tend to be large, positive and decays slowly as the lags increases and the reverse pattern appeared after lag 43, suggesting the structure break is in this trended time series, however the seasonal pattern is not clear in the correlogram. Furthermore, we can see the average GDP for Q4 was the highest value while the average GDP for Q1 was the smallest value based on the sub-series plot. We can also see an increasing year-on-year trend for each quarter in the sub-series plot and the GDP, on average, increases as the year increases.  
 
 Next, we have a look at the decomposition plot by using STL decomposition. We decide to use STL model because it allows the seasonal component change over time and we see the magnitude of variation around the trend-cycle does not really vary with the level, so we only consider additive decomposition.   
 
@@ -66,7 +65,7 @@ stl.dcmp%>%
   autoplot()
 ```
 
-Based on the decomposition result, we can see the trend component dominates the time series, accounting for most of the variability. This is followed by the remainder component, and then the seasonal component. There is a period of time the trend is negative and then stable (from 1990 Q1 until around year of 2003). However, the long-term trend appears to be positive, indicating the GDP in Local Government Administration are increasing. The remainder component appears random, with no discernible patterns, and may be consistent with white noise but we would need further analysis test this. The seasonal component changes quickly over time, where the magnitudes are significantly increasing.
+Based on the decomposition result, we can see the trend component dominates the time series, accounting for most of the variability. This is followed by the remainder component, and then the seasonal component. There is a period of time the trend is negative and then stable (from 1990 Q1 until around year of 2003). However, the long-term trend appears to be positive, indicating the GDP in Local Government Administration are increasing. The remainder component appears random, with no discernible patterns, and may be consistent with white noise but we would need further analysis test this. The seasonal component changes over time, where the magnitudes are significantly increasing and stabilizing after 2010.
 
 
 
@@ -76,13 +75,8 @@ Based on the decomposition result, we can see the trend component dominates the 
 Based on the analysis in the first step, we can confirm that there are indeed trends and seasonal changes, but I am currently unable to determine whether to use multiplicative seasonality or additive seasonality to fit the ets model. And it is necessary to consider whether to adopt a pounded trend. So, I decided to manually try out the pros and cons of these four models first.
 
 ```{r}
-data_ets <- read_csv("qgdp_training.csv",show_col_types = FALSE)
 
-data_ets <- data_ets %>% mutate(Quarter = yearquarter(Date)) %>%  
-  select(Quarter,`Local Government Administration`) %>% 
-  as_tsibble(index = Quarter)
-
-fit <- data_ets %>%
+fit <- train %>%
        model(
          additive_season = ETS(`Local Government Administration` ~ error("A") + trend("A") + season("A")),
          multiplicative_season = ETS(`Local Government Administration` ~ error("M") + trend("A") + season("M")),
@@ -91,12 +85,12 @@ fit <- data_ets %>%
        )
 
 fc <- fit %>% forecast(h = "5 years")
-fc %>% autoplot(data)
+fc %>% autoplot(train)
 
 # Check model summary
 report(fit)
 
-fit_best <- data_ets %>%
+fit_best <- train %>%
   model(ETS(`Local Government Administration`))
 report(fit_best)
 
@@ -148,20 +142,9 @@ Where:
 To fit an appropriate ARIMA model, we first need to test the stationary of the time series data. Because if the time series data is stationary, it means that its statistical characteristics are constant over time, allowing for better modeling and prediction. But here we first need to convert the Date column to date format, as it is quarterly data. And at the same time, it is necessary to convert the data into tsible format. Then, we first conducted KPSS test on the data to check the stationary.
 
 ```{r}
-# Load the data.
-data <- read.csv("qgdp_training.csv")
-
-# Convert the Date column to date format.
-data <- data %>%
-  mutate(Date = yearquarter(Date))
-
-# Convert the data to tsible format.
-data_tsibble <- data %>%
-  as_tsibble(index = Date)
-
 # Check the stationary of the original data.
-kpss_results <- data_tsibble %>%
-  features(Local.Government.Administration, unitroot_kpss)
+kpss_results <- train %>%
+  features(`Local Government Administration`, unitroot_kpss)
 
 print(kpss_results)
 ```
@@ -170,11 +153,11 @@ From the test results, according to the KPSS test, the kpss_pvalue is very small
 
 ```{r}
 # Perform a first difference on the data.
-data_tsibble <- data_tsibble %>%
-  mutate(diff_Local.Government.Administration = difference(Local.Government.Administration))
+train <- train %>%
+  mutate(diff_Local.Government.Administration = difference(`Local Government Administration`))
 
 # Do the KPSS test.
-kpss_results_diff <- data_tsibble %>%
+kpss_results_diff <- train %>%
   features(diff_Local.Government.Administration, unitroot_kpss)
 print(kpss_results_diff)
 ```
@@ -183,11 +166,11 @@ After performing a first difference on the data, we conducted a KPSS test again 
 
 ```{r}
 # Perform a second-order difference on the data.
-data_tsibble <- data_tsibble %>%
+train<- train %>%
   mutate(diff2_Local.Government.Administration = difference(diff_Local.Government.Administration))
 
 # Do the KPSS test.
-kpss_results_diff2 <- data_tsibble %>%
+kpss_results_diff2 <- train %>%
   features(diff2_Local.Government.Administration, unitroot_kpss)
 print(kpss_results_diff2)
 ```
@@ -196,25 +179,25 @@ From the results, we can see that the kpss_pvalue of the data after the second-o
 
 ```{r}
 # Draw the ACF plot and PACF plot with the second-order difference data.
-gg_tsdisplay(data_tsibble, diff2_Local.Government.Administration, plot_type = "partial")
+gg_tsdisplay(train, diff2_Local.Government.Administration, plot_type = "partial")
 ```
 
 Through the ACF plot, we can locate the p-value candidate values as 2, 3 or 4. Through the PACF plot, we can locate the q-value candidate values as 1 or 3. Because the autocorrelation coefficients are significant at these lagging points. Next, we create a shortlist of appropriate candidate ARIMA models by arranging and combining different q and p values.
 
 ```{r}
 # Fit the ARIMA model and store them in the shortlist.
-models <- data_tsibble %>%
+models <- train %>%
   model(
-    arima_220 = ARIMA(Local.Government.Administration ~ pdq(2, 2, 0)),
-    arima_221 = ARIMA(Local.Government.Administration ~ pdq(2, 2, 1)),
-    arima_021 = ARIMA(Local.Government.Administration ~ pdq(0, 2, 1)),
-    arima_023 = ARIMA(Local.Government.Administration ~ pdq(0, 2, 3)),
-    arima_211 = ARIMA(Local.Government.Administration ~ pdq(2, 1, 1)),
-    arima_420 = ARIMA(Local.Government.Administration ~ pdq(4, 2, 0)),
-    arima_321 = ARIMA(Local.Government.Administration ~ pdq(3, 2, 1)),
-    arima_320 = ARIMA(Local.Government.Administration ~ pdq(3, 2, 0)),
-    stepwise = ARIMA(Local.Government.Administration),
-    search = ARIMA(Local.Government.Administration, stepwise = FALSE)
+    arima_220 = ARIMA(`Local Government Administration` ~ pdq(2, 2, 0)),
+    arima_221 = ARIMA(`Local Government Administration` ~ pdq(2, 2, 1)),
+    arima_021 = ARIMA(`Local Government Administration` ~ pdq(0, 2, 1)),
+    arima_023 = ARIMA(`Local Government Administration` ~ pdq(0, 2, 3)),
+    arima_211 = ARIMA(`Local Government Administration` ~ pdq(2, 1, 1)),
+    arima_420 = ARIMA(`Local Government Administration` ~ pdq(4, 2, 0)),
+    arima_321 = ARIMA(`Local Government Administration` ~ pdq(3, 2, 1)),
+    arima_320 = ARIMA(`Local Government Administration` ~ pdq(3, 2, 0)),
+    stepwise = ARIMA(`Local Government Administration`),
+    search = ARIMA(`Local Government Administration`, stepwise = FALSE)
   )
 
 # Report the summary of the models.
@@ -282,21 +265,50 @@ The numbers (2-2-1) indicates each network has the structure of 2 input nodes, 2
 # 5. Assumption checking
 
 ```{r}
+# residual diagnostic plots for chosen ETS model
+fit_best %>% gg_tsresiduals()
+# residual diagnostic plots for chosen ARIMA model
+best_model %>% gg_tsresiduals()
+# residual diagnostic plots for chosen NNAR model
+nnar_model %>% gg_tsresiduals()
+```
 
+Surrogate data testing is a statistical proof by contradiction technique which is similar with permutation tests. The key idea is to generate surrogate datasets that preserve some aspects of the original data while randomizing others, and then compare the statistical properties of the original data to those of the surrogates. This helps to determine whether the observed properties in the original data are genuine or could have arisen by chance. Specifically, using Random Shuffle method creates new data simply by random permutations of the original series. This will destroy any temporal correlation that may have been in the original data but still guarantee the same amplitude distribution as the original series. This method is associated to the null hypothesis of the data being independent.
+
+In `surrogate_test.R`, inputs are the time series that we want to expect the independence having one measure variable(if not, the function will stop), number of lags in portmanteau test statistic, number of permutations to perform(default = 1000), which type of Portmanteau test that we want(default = ljung-box) and outputs are Q values included Q observed and Q null hypothesis and p-value. 
+
++ Firstly, compute the observed Q statistic of the original time series corresponding with either ljung-box test or box-pierce test using all the autocorrelation from lag 1 to the given `lag` in input.  
+
++ Next, generate `N` samples by random permutations of the original time series, this will kill autocorrelation while maintaining amplitude. Then, computing Q statistics on each sample and comparing the original statistic to the distribution of surrogate statistics, which gives us p-value. If p-value is significant(smaller than 0.05, we reject the null hypothesis, indicating the time series is not independent otherwise our time series is independent. 
+
+```{r}
+source('surrogate_test.R')
+# perform ljung-box test for ETS model
+res1 <- fit_best %>% augment() %>% pull(.resid)
+s1 <- surrogate.test(res1,lag=8) 
+s1$p.value # p-value
+# perform ljung-box test for ARIMA model
+res2 <- best_model %>% augment() %>% pull(.resid)
+s2 <- surrogate.test(res2,lag=8) 
+s2$p.value # p-value
+# perform ljungbox test for NNAR model
+res3 <- nnar_model %>% augment() %>% pull(.resid) %>% na.omit() %>% as.vector()
+s3 <- surrogate.test(res3,lag=8)
+s3$p.value
 ```
 
 
 # 6. Forecasting
 
 ```{r}
-ets_fit <- data_ets %>%
+ets_fit <- train %>%
   model(
     additive_season_damped = ETS(`Local Government Administration` ~ error("A") + trend("Ad") + season("A"))
   )
 
-fit_arima <- data_tsibble %>%
+fit_arima <- train %>%
   model(
-    search = ARIMA(Local.Government.Administration, stepwise = FALSE)
+    search = ARIMA(`Local Government Administration`, stepwise = FALSE)
   )
 
 nnar_model <- train %>% model(NNETAR(`Local Government Administration`))
