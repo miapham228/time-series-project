@@ -76,13 +76,13 @@ Based on the decomposition result, we can see the trend component dominates the 
 Based on the analysis in the first step, we can confirm that there are indeed trends and seasonal changes, but I am currently unable to determine whether to use multiplicative seasonality or additive seasonality to fit the ets model. And it is necessary to consider whether to adopt a pounded trend. So, I decided to manually try out the pros and cons of these four models first.
 
 ```{r}
-data <- read_csv("qgdp_training.csv",show_col_types = FALSE)
+data_ets <- read_csv("qgdp_training.csv",show_col_types = FALSE)
 
-data <- data %>% mutate(Quarter = yearquarter(Date)) %>%  
+data_ets <- data_ets %>% mutate(Quarter = yearquarter(Date)) %>%  
   select(Quarter,`Local Government Administration`) %>% 
   as_tsibble(index = Quarter)
 
-fit <- data %>%
+fit <- data_ets %>%
        model(
          additive_season = ETS(`Local Government Administration` ~ error("A") + trend("A") + season("A")),
          multiplicative_season = ETS(`Local Government Administration` ~ error("M") + trend("A") + season("M")),
@@ -96,10 +96,10 @@ fc %>% autoplot(data)
 # Check model summary
 report(fit)
 
-# Use the method of automatically selecting the best model to check if we have selected it correctly.
-fit_best <- data %>%
+fit_best <- data_ets %>%
   model(ETS(`Local Government Administration`))
 report(fit_best)
+
 ```
 
 We can clearly see here that among many aspects of error data, the method of adding seasonality and with Damped trend has the smallest errors, and my method of automatically obtaining the minimum AIC also told me that I should choose the method of adding seasonality and with Damped trend.
@@ -289,8 +289,54 @@ The numbers (2-2-1) indicates each network has the structure of 2 input nodes, 2
 # 6. Forecasting
 
 ```{r}
+ets_fit <- data_ets %>%
+  model(
+    additive_season_damped = ETS(`Local Government Administration` ~ error("A") + trend("Ad") + season("A"))
+  )
 
+fit_arima <- data_tsibble %>%
+  model(
+    search = ARIMA(Local.Government.Administration, stepwise = FALSE)
+  )
+
+nnar_model <- train %>% model(NNETAR(`Local Government Administration`))
+
+ets_forecast <- ets_fit %>% forecast(h = 8)
+ets_forecast <- ets_forecast %>% hilo(level = 95) %>% as_tibble()
+print(ets_forecast)
+
+arima_forecast <- fit_arima %>% forecast(h = 8)
+arima_forecast <- arima_forecast %>% hilo(level = 95) %>% as_tibble()
+print(arima_forecast)
+
+nnar_forecast <- nnar_model %>% forecast(h = 8)
+nnar_forecast <- nnar_forecast %>% hilo(level = 95) %>% as_tibble()
+print(nnar_forecast)
 ```
+
+## ETS Prediction Interval Construction
+
+The prediction intervals for ETS models can be constructed based on the error type (additive or multiplicative) and the specific form of the model. Specifically:
+
+For additive error models (e.g., ETS(A,N,A)):
+
+- The prediction distribution is Gaussian.
+- Prediction intervals are calculated using a Gaussian approximation.
+- For most ETS models, the following formula can be used:
+  \[
+  \hat{y}_{T+h|T} \pm z_{\alpha/2} \hat{\sigma}_h
+  \]
+  where \(z_{\alpha/2}\) is the \(\alpha/2\) quantile of the standard Gaussian distribution, and \(\hat{\sigma}_h\) is an estimate of the forecast standard deviation.
+
+### Estimation of Forecast Standard Deviation
+
+For additive error and damped trend ETS models (e.g., ETS(A,Ad,A)), the forecast standard deviation can be estimated using the following formula:
+
+\[
+\sigma^2_h = \sigma^2 \left[ 1 + \alpha^2 (h-1) + \left( \frac{1 - \phi^h}{1 - \phi} \right)^2 (2 \alpha (1 - \phi) + \beta \phi) \right] + \gamma k (2 \alpha + \gamma) + 2 \left( \frac{\beta \gamma \phi}{1 - \phi} \right) k (1 - \phi^m) - \phi^m (1 - \phi^{mk})
+\]
+
+
 
 
 # 7. Member contributions
