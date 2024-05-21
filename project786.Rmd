@@ -297,6 +297,12 @@ s3 <- surrogate.test(res3,lag=8)
 s3$p.value
 ```
 
+The time plot of residuals of ETS model show that the residuals appear to have zero mean and constant variance. The histogram of the residuals appears to be symmetric and normally distributed. The correlogram of the residuals shows insignificant autocorrelation and the p-value from surrogate test gives us no evidence against the null hypothesis, indicating that residuals are independent.
+
+The time plot of residuals of ARIMA model show that the residuals appear to have zero mean and constant variance. The histogram of the residuals appears to be symmetric and normally distributed. The correlogram of the residuals only shows significant autocorrelation at lag 13 (it's okay) and the p-value from surrogate test gives us no evidence against the null hypothesis, indicating that residuals are independent.
+
+However, interpreting residual diagnostics for the NNAR model is not very useful because there are not any assumptions about the residuals or the distribution of the forecasts. 
+
 
 # 6. Forecasting
 
