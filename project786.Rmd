@@ -370,5 +370,49 @@ Finally, we can calculate the prediction interval:
 \]
 \hat{y}_{T+h|T} is the predicted value. z_{\alpha/2} is the critical value of the standard normal distribution. \hat{\sigma}_h is the prediction standard error.
 
+
+```{r}
+test <- read_csv("qgdp_full.csv", show_col_types = FALSE)
+
+test <- test %>%
+  mutate(Quarter = yearquarter(Date)) %>%
+  select(Quarter, `Local Government Administration`) %>%
+  as_tsibble(index = Quarter)
+
+test_values <- test %>%
+  filter(Quarter >= yearquarter("2022 Q1") & Quarter <= yearquarter("2023 Q4")) %>%
+  select(Quarter, `Local Government Administration`)
+
+ets_forecast <- ets_forecast %>%
+  inner_join(test_values, by = "Quarter", suffix = c(".forecast", ".actual"))
+
+arima_forecast <- arima_forecast %>%
+  inner_join(test_values, by = "Quarter", suffix = c(".forecast", ".actual"))
+
+nnar_forecast <- nnar_forecast %>%
+  inner_join(test_values, by = "Quarter", suffix = c(".forecast", ".actual"))
+
+calculate_metrics <- function(forecast_df) {
+  forecast_df %>%
+    summarize(
+      MSE = mean((`Local Government Administration.forecast` - `Local Government Administration.actual`)^2),
+      RMSE = sqrt(mean((`Local Government Administration.forecast` - `Local Government Administration.actual`)^2)),
+      MAE = mean(abs(`Local Government Administration.forecast` - `Local Government Administration.actual`))
+    )
+}
+
+ets_metrics <- calculate_metrics(ets_forecast)
+arima_metrics <- calculate_metrics(arima_forecast)
+nnar_metrics <- calculate_metrics(nnar_forecast)
+
+print(ets_metrics)
+print(arima_metrics)
+print(nnar_metrics)
+```
+
+## summary
+
+Overall, the ETS model performs the best in the short term, while the ARIMA model has better stability in medium - and long-term predictions. The NNAR model has significant errors in all prediction cycles, indicating that its predictive performance on this set of data is not as good as the ETS and ARIMA models.
+
 # 7. Member contributions
 
