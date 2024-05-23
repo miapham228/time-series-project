@@ -9,16 +9,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(fpp3)
-library(grid)
-library(gridExtra)
 library(forecast)
-library(tseries)
 library(dplyr)
 library(feasts)
 library(fabletools)
 library(tsibble)
 library(ggplot2)
-library(latex2exp)
 library(nnet)
 ```
 
@@ -127,12 +123,19 @@ The ETS model equations for an additive error, damped additive trend, and additi
   \]
 
 Where:
+
 - \( \hat{y}_{t|t-1} \) is the one-step ahead forecast,
+
 - \( l_t \) is the level component at time \( t \),
+
 - \( b_t \) is the trend component at time \( t \),
+
 - \( s_t \) is the seasonal component at time \( t \),
+
 - \( \phi \) is the damping factor,
+
 - \( \alpha, \beta, \gamma \) are the smoothing parameters,
+
 - \( e_t \) is the forecast error at time \( t \).
 
 
@@ -215,15 +218,12 @@ report(best_model)
 
 Based on the results of search model, we can write the fitted model equation in backshift notation:
 
-\documentclass{article}
-\usepackage{amsmath}
-\begin{document}
 
 \[
 (1 - 0.0764B - 0.2787B^2) (1 - B^4) \nabla y_t = (1 - 0.6220B^4) \epsilon_t
 \]
 
-\end{document}
+
 
 # 4. Neural network autoregression (NNAR) models
 
@@ -373,37 +373,43 @@ Finally, we can calculate the prediction interval:
 
 ```{r}
 test <- read_csv("qgdp_full.csv", show_col_types = FALSE)
-
+# convert into tsibble
 test <- test %>%
   mutate(Quarter = yearquarter(Date)) %>%
   select(Quarter, `Local Government Administration`) %>%
   as_tsibble(index = Quarter)
-
-test_values <- test %>%
-  filter(Quarter >= yearquarter("2022 Q1") & Quarter <= yearquarter("2023 Q4")) %>%
-  select(Quarter, `Local Government Administration`)
-
+# model forecasts
 ets_forecast <- ets_fit %>% forecast(h = 8)
 arima_forecast <- fit_arima %>% forecast(h = 8)
 nnar_forecast <- nnar_model %>% forecast(h = 8)
-
-ets_metrics <- accuracy(ets_forecast, test_values)
-arima_metrics <- accuracy(arima_forecast, test_values)
-nnar_metrics <- accuracy(nnar_forecast, test_values)
-
+# measures of accuracy
+ets_metrics <- accuracy(ets_forecast, test)
+arima_metrics <- accuracy(arima_forecast, test)
+nnar_metrics <- accuracy(nnar_forecast, test)
+# show results
 print(ets_metrics)
 print(arima_metrics)
 print(nnar_metrics)
 ```
 
-## summary
+## Summary
 
-The ARIMA model performs the best among all models, with the lowest RMSE, MAE, and MAPE, indicating the highest prediction accuracy and the smallest error.
+The ARIMA model performs the best among all models, with the lowest RMSE, MAE, MASE and MAPE, indicating the highest prediction accuracy and the smallest error.
 
 The predictive performance of the ETS model is second, although RMSE and MAE are relatively high, MAPE is relatively low, indicating that it performs well in terms of relative error.
 
-The NNAR model performs the worst, with the highest RMSE, MAE, and MAPE, indicating that it has the highest prediction error and the lowest accuracy.
+The NNAR model performs the worst, with the highest RMSE, MAE, MASE and MAPE, indicating that it has the highest prediction error and the lowest accuracy.
 
 
 # 7. Member contributions
+
+In this project, all tasks were allocated as below:
+
++ `ETS models` task and part of `Forecasting` task were done by Huazhe Cheng
+
++ `ARIMA models` task and part of `Forecasting` task were done by JingShu Li
+
++ `Neural network autoregression (NNAR) models` task and part of `Forecasting` task were done by Agnes Lee
+
++ `Exploratory data analysis` task and `Assumption checking` task were done by Tuyet Pham
 
