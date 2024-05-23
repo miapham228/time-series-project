@@ -278,7 +278,7 @@ Surrogate data testing is a statistical proof by contradiction technique which i
 
 In `surrogate_test.R`, inputs are the time series that we want to expect the independence having one measure variable(if not, the function will stop), number of lags in portmanteau test statistic, number of permutations to perform(default = 1000), which type of Portmanteau test that we want(default = ljung-box) and outputs are Q values included Q observed and Q null hypothesis and p-value. 
 
-+ Firstly, compute the observed Q statistic of the original time series corresponding with either ljung-box test or box-pierce test using all the autocorrelation from lag 1 to the given `lag` in input.  
++ Firstly, extract values from time series and compute the observed Q statistic of the original time series corresponding with either ljung-box test or box-pierce test using all the autocorrelation from lag 1 to the given `lag` in input.  
 
 + Next, generate `N` samples by random permutations of the original time series, this will kill autocorrelation while maintaining amplitude. Then, computing Q statistics on each sample and comparing the original statistic to the distribution of surrogate statistics, which gives us p-value. If p-value is significant(smaller than 0.05, we reject the null hypothesis, indicating the time series is not independent otherwise our time series is independent. 
 
@@ -298,9 +298,9 @@ s3 <- surrogate.test(res3,lag=8)
 s3$p.value
 ```
 
-The time plot of residuals of ETS model show that the residuals appear to have zero mean and constant variance. The histogram of the residuals appears to be symmetric and normally distributed. The correlogram of the residuals shows insignificant autocorrelation and the p-value from surrogate test gives us no evidence against the null hypothesis, indicating that residuals are independent.
+The time plot of residuals of ETS model show that the residuals appear to have zero mean and constant variance. The histogram of the residuals appears to be symmetric and normally distributed. The correlogram of the residuals shows insignificant autocorrelation and the p-value from surrogate test gives us no evidence against the null hypothesis, indicating that residuals are independent. Therefore, all model assumptions have been met. 
 
-The time plot of residuals of ARIMA model show that the residuals appear to have zero mean and constant variance. The histogram of the residuals appears to be symmetric and normally distributed. The correlogram of the residuals only shows significant autocorrelation at lag 13 (it's okay) and the p-value from surrogate test gives us no evidence against the null hypothesis, indicating that residuals are independent.
+The time plot of residuals of ARIMA model show that the residuals appear to have zero mean and constant variance. The histogram of the residuals appears to be symmetric and normally distributed. The correlogram of the residuals only shows significant autocorrelation at lag 13 (it's okay) and the p-value from surrogate test gives us no evidence against the null hypothesis, indicating that residuals are independent. Therefore, all model assumptions have been met. 
 
 However, interpreting residual diagnostics for the NNAR model is not very useful because there are not any assumptions about the residuals or the distribution of the forecasts. 
 
