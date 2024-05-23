@@ -370,7 +370,6 @@ Finally, we can calculate the prediction interval:
 \]
 \hat{y}_{T+h|T} is the predicted value. z_{\alpha/2} is the critical value of the standard normal distribution. \hat{\sigma}_h is the prediction standard error.
 
-
 ```{r}
 test <- read_csv("qgdp_full.csv", show_col_types = FALSE)
 
