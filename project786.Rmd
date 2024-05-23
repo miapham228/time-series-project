@@ -236,6 +236,7 @@ The NNAR model combines these two approaches, which uses previous time series va
 For time series data, lagged values of the time series can be used as inputs to a neural network. This is the Neural Network Autoregression (NNAR) model.
 
 Structure of the NNAR model: 
+
 1. **Input Layer**: Receives *p* lagged values of the time series (similar to AR model inputs).
 2. **Hidden Layers**: One or more hidden layers , with neurons that apply non-linear transformations to the inputs. The number of neurons and hidden layers can vary based on the complexity required.
 3. **Output Layer**: Typically a single neuron that outputs the predicted future value.
