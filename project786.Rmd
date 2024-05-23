@@ -361,14 +361,14 @@ ARIMA models typically use prediction standard error to calculate prediction int
 \[
 \hat{\sigma}_h = \hat{\sigma} \sqrt{1 + \theta_1^2 + \theta_2^2 + \cdots + \theta_h^2}
 \]
-\theta_i is a parameter of the MA part.
+\[\theta_i\] is a parameter of the MA part.
 
 Finally, we can calculate the prediction interval:
 
 \[
 \hat{y}_{T+h|T} \pm z_{\alpha/2} \cdot \hat{\sigma}_h
 \]
-\hat{y}_{T+h|T} is the predicted value. z_{\alpha/2} is the critical value of the standard normal distribution. \hat{\sigma}_h is the prediction standard error.
+\[\hat{y}_{T+h|T}\] is the predicted value. \[z_{\alpha/2}\] is the critical value of the standard normal distribution. \[\hat{\sigma}_h\] is the prediction standard error.
 
 ## NNAR Prediction Interval Construction
 
