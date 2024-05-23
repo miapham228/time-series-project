@@ -373,7 +373,7 @@ Finally, we can calculate the prediction interval:
 
 ## NNAR Prediction Interval Construction
 
-The neural network fitted to our data can be written in the form ($y_{t} = f(y_{t-1}) + \epsilon{t}$). ($y_{t-1} = y_{t-1}, y_{t-2} $)', is the vector that contains lagged values of the series. ($f$) is a neural network with 2 hidden nodes in a single layer. The error series ($\epsilon{t}$) is assumed to be homoscedasticity, which means error is constant, and normally distributed. 
+The neural network fitted to our data can be written in the form ($y_{t} = f(y_{t-1}) + \epsilon{t}$). ($y_{t-1} = y_{t-1}, y_{t-2}$), is the vector that contains lagged values of the series. ($f$) is a neural network with 2 hidden nodes in a single layer. The error series ($\epsilon{t}$) is assumed to be homoscedasticity, which means error is constant, and normally distributed. 
 
 The prediction intervals for an NNAR model are typically calculated based on the residuals of the model and the assumption of normality.  The forecast() package does the calculation.
 
